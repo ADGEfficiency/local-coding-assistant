@@ -1,15 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Original notebook - https://colab.research.google.com/drive/135ced7oHytdxu3N2DNe1Z0kqjyYIkDXp?usp=sharing
+# Original notebook - https://colab.research.google.com/drive/135ced7oHytdxu3N2DNe1Z0kqjyYIkDXp?usp=sharing
 
-You will learn how to do [data prep](#Data), how to [train](#Train), how to [run the model](#Inference), & [how to save it](#Save) (eg for Llama.cpp).
-"""
-
-# Commented out IPython magic to ensure Python compatibility.
-# %%capture
 # # Installs Unsloth, Xformers (Flash Attention) and all other packages!
-# !pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-# !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
+!pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+!pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
 
 """
 ### Model and Tokenizer
