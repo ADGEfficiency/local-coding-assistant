@@ -1,13 +1,15 @@
+# %% [markdown]
 # Original notebook - https://colab.research.google.com/drive/135ced7oHytdxu3N2DNe1Z0kqjyYIkDXp?usp=sharing
+# Installs Unsloth, Xformers (Flash Attention) and all other packages!
 
-# # Installs Unsloth, Xformers (Flash Attention) and all other packages!
-!pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-!pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
+# %%
+# !pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+# !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
 
-"""
-### Model and Tokenizer
-"""
+# %% [markdown]
+# # Model and Tokenizer
 
+# %%
 from unsloth import FastLanguageModel
 import torch
 max_seq_length = 2048 # Choose any! We auto support RoPE Scaling internally!
