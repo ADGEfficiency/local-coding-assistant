@@ -66,10 +66,10 @@ Complete the code.
 def formatting_prompts_func(examples):
     EOS_TOKEN = tokenizer.eos_token  # Must add EOS_TOKEN
     instructions = examples["prompt"]
-    inputs = examples["completion"]
+    response = examples["response"]
     # outputs      = examples["output"]
     texts = []
-    for instruction, input in zip(instructions, inputs):
+    for instruction, input in zip(instructions, response):
         # Must add EOS_TOKEN, otherwise your generation will go on forever!
         text = prompt.format(instruction, input) + EOS_TOKEN
         texts.append(text)
@@ -159,8 +159,8 @@ FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
 inputs = tokenizer(
     [
         prompt.format(
-            "Continue the fibonnaci sequence.",  # instruction
-            "1, 1, 2, 3, 5, 8",  # input
+            "Write code.",  # instruction
+            "class BatteryConfig",  # input
             "",  # output - leave this blank for generation!
         )
     ],
@@ -174,8 +174,8 @@ for response in decoded_outputs:
 # -
 # Evaluate
 # +
-eval_results = trainer.evaluate()
-print(f"Evaluation results: {eval_results}")
+# eval_results = trainer.evaluate()
+# print(f"Evaluation results: {eval_results}")
 
 # -
 # # GGUF / llama.cpp Conversion

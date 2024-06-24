@@ -14,7 +14,7 @@ data = [
             final_charge_mwh: float | None = 0.0
             freq_mins: int
             ''',
-        "completion": '''@pydantic.field_validator("name")
+        "response": '''@pydantic.field_validator("name")
             @classmethod
             def check_name(cls, name: str) -> str:
                 """Ensure we can identify this asset correctly.
@@ -33,9 +33,7 @@ data = [
 ds = datasets.Dataset.from_dict(
     {
         "prompt": [i["prompt"] for i in data],
-        "completion": [i["completion"] for i in data],
+        "response": [i["response"] for i in data],
     }
 )
-ds.save_to_disk("train")
-ds = datasets.Dataset.load_from_disk("train")
-ds.push_to_hub("adgefficiency/climate-news-db")
+ds.push_to_hub("adgefficiency/energy-py-linear")
