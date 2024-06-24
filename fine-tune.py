@@ -51,7 +51,6 @@ model = FastLanguageModel.get_peft_model(
 # # Load Dataset
 
 # +
-
 prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Task:
@@ -80,13 +79,32 @@ def formatting_prompts_func(examples):
 
 
 dataset = load_dataset("adgefficiency/climate-news-db", split="train")
+
+"""
+# Split dataset into train and test sets (80% train, 20% test)
+train_test_split = dataset.train_test_split(test_size=0.2)
+train_dataset = train_test_split['train']
+test_dataset = train_test_split['test']
+
+# Format datasets
+train_dataset = train_dataset.map(formatting_prompts_func, batched=True)
+test_dataset = test_dataset.map(formatting_prompts_func, batched=True)
+
+trainer = SFTTrainer(
+    model=model,
+    tokenizer=tokenizer,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset,
+
+"""
+
+
 dataset = dataset.map(formatting_prompts_func, batched=True)
 
 # -
 # # Training
 
 # +
-
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
@@ -132,13 +150,11 @@ print(f"Peak reserved memory = {used_memory} GB.")
 print(f"Peak reserved memory for training = {used_memory_for_lora} GB.")
 print(f"Peak reserved memory % of max memory = {used_percentage} %.")
 print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.")
-
-# +
+# -
 # # Inference
 # Let's run the model! You can change the instruction and input - leave the output blank!
 
-# -
-
+# +
 FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
 inputs = tokenizer(
     [
@@ -152,11 +168,18 @@ inputs = tokenizer(
 ).to("cuda")
 
 outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
-print(tokenizer.batch_decode(outputs))
+decoded_outputs = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+for response in decoded_outputs:
+    print(response)
+# -
+# Evaluate
+# +
+eval_results = trainer.evaluate()
+print(f"Evaluation results: {eval_results}")
 
 # -
 # # GGUF / llama.cpp Conversion
 
 # +
-
-model.save_pretrained_gguf("model", tokenizer, quantization_method="q5_k_m")
+if False:
+    model.save_pretrained_gguf("model", tokenizer, quantization_method="q5_k_m")
