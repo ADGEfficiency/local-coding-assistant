@@ -50,24 +50,13 @@ model = FastLanguageModel.get_peft_model(
 
 # # Load Dataset
 
+
 # +
-prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
-
-### Instruction:
-{}
-
-### Input:
-{}
-
-### Response:
-{}"""
-
-
 def formatting_prompts_func(examples: dict):
     prompt_responses = []
     for example in examples["prompt-response"]:
         prompt_responses.append(
-            example["prompt-resp"] + tokenizer.eos_token,
+            example + tokenizer.eos_token,
         )
     return {"prompt-responses": prompt_responses}
 

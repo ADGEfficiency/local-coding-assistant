@@ -43,6 +43,6 @@ for d in data:
     )
     ds["prompt-response"].append(f"{ds['prompt'][-1]}\n\n### Response: {d['output']}")
 
-
-ds = datasets.Dataset.from_dict(ds)
+train = datasets.Dataset.from_dict(ds)
+ds = datasets.DatasetDict({"train": train})
 ds.push_to_hub("adgefficiency/energy-py-linear")
