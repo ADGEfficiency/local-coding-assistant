@@ -138,8 +138,9 @@ for response in decoded_outputs:
 # Evaluate
 
 # +
-eval_results = trainer.evaluate()
-print(f"Evaluation results: {eval_results}")
+if False:
+    eval_results = trainer.evaluate()
+    print(f"Evaluation results: {eval_results}")
 
 # -
 # # GGUF / llama.cpp Conversion
