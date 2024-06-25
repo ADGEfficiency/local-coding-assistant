@@ -132,10 +132,11 @@ inputs = tokenizer(
 outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
 decoded_outputs = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 for response in decoded_outputs:
-    print(response)
-    print(dataset["response"][0])
+    print(f"{response=}")
+    print(f"{dataset['output'][0]=}")
 # -
 # Evaluate
+
 # +
 eval_results = trainer.evaluate()
 print(f"Evaluation results: {eval_results}")
