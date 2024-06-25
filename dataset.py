@@ -41,7 +41,7 @@ for d in data:
     ds["prompt"].append(
         f"Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction: {d['instruction']}\n\n### Input: {d['input']}"
     )
-    print(ds["prompt"][-1])
+    ds["prompt-response"].append(f"{ds['prompt'][-1]}\n\n### Response: {d['output']}")
 
 
 ds = datasets.Dataset.from_dict(ds)

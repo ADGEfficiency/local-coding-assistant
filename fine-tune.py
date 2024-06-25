@@ -63,20 +63,16 @@ prompt = """Below is an instruction that describes a task, paired with an input 
 {}"""
 
 
-def formatting_prompts_func(examples):
-    instruction = examples["instruction"]
-    input = examples["input"]
-    output = examples["output"]
-    texts = []
-    for instruction, input, output in zip(instruction, input, output):
-        text = prompt.format(instruction, input, output) + tokenizer.eos_token
-        texts.append(text)
-    return {
-        "text": texts,
-    }
+def formatting_prompts_func(examples: dict):
+    prompt_responses = []
+    for example in examples["prompt-response"]:
+        prompt_responses.append(
+            example["prompt-resp"] + tokenizer.eos_token,
+        )
+    return {"prompt-responses": prompt_responses}
 
 
-dataset = load_dataset("adgefficiency/climate-news-db", split="train")
+dataset = load_dataset("adgefficiency/energy-py-linear", split="train")
 
 """
 # Split dataset into train and test sets (80% train, 20% test)
@@ -93,9 +89,7 @@ trainer = SFTTrainer(
     tokenizer=tokenizer,
     train_dataset=train_dataset,
     eval_dataset=test_dataset,
-
 """
-
 
 dataset = dataset.map(formatting_prompts_func, batched=True)
 
@@ -107,7 +101,7 @@ trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
     train_dataset=dataset,
-    dataset_text_field="text",
+    dataset_text_field="prompt-response",
     max_seq_length=max_seq_length,
     dataset_num_proc=2,
     packing=False,  # Can make training 5x faster for short sequences.
