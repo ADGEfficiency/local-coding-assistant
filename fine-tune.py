@@ -9,7 +9,7 @@
 # +
 from unsloth import FastLanguageModel
 import torch
-from datasets import load_dataset
+import datasets
 from trl import SFTTrainer
 from transformers import TrainingArguments
 from unsloth import is_bfloat16_supported
@@ -61,26 +61,11 @@ def formatting_prompts_func(examples: dict):
     return {"prompt-responses": prompt_responses}
 
 
-dataset = load_dataset("adgefficiency/energy-py-linear", split="train")
-
-"""
-# Split dataset into train and test sets (80% train, 20% test)
-train_test_split = dataset.train_test_split(test_size=0.2)
-train_dataset = train_test_split['train']
-test_dataset = train_test_split['test']
-
-# Format datasets
-train_dataset = train_dataset.map(formatting_prompts_func, batched=True)
-test_dataset = test_dataset.map(formatting_prompts_func, batched=True)
-
-trainer = SFTTrainer(
-    model=model,
-    tokenizer=tokenizer,
-    train_dataset=train_dataset,
-    eval_dataset=test_dataset,
-"""
-
+dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
 dataset = dataset.map(formatting_prompts_func, batched=True)
+
+# dataset_te = load_dataset("adgefficiency/energy-py-linear", split="test")
+# dataset_te = dataset_te.map(formatting_prompts_func, batched=True)
 
 # -
 # # Training
@@ -90,6 +75,8 @@ trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
     train_dataset=dataset,
+    # eval_dataset=dataset_te,
+    eval_dataset=dataset,
     dataset_text_field="prompt-response",
     max_seq_length=max_seq_length,
     dataset_num_proc=2,
@@ -138,13 +125,7 @@ print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.
 # +
 FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
 inputs = tokenizer(
-    [
-        prompt.format(
-            "Write code.",  # instruction
-            "class BatteryConfig",  # input
-            "",  # output - leave this blank for generation!
-        )
-    ],
+    [dataset["prompt"][0]],
     return_tensors="pt",
 ).to("cuda")
 
@@ -152,11 +133,12 @@ outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
 decoded_outputs = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 for response in decoded_outputs:
     print(response)
+    print(dataset["response"][0])
 # -
 # Evaluate
 # +
-# eval_results = trainer.evaluate()
-# print(f"Evaluation results: {eval_results}")
+eval_results = trainer.evaluate()
+print(f"Evaluation results: {eval_results}")
 
 # -
 # # GGUF / llama.cpp Conversion
