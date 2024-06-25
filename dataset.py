@@ -1,8 +1,10 @@
+import collections
 import datasets
 
 data = [
     {
-        "prompt": '''class BatteryConfig(pydantic.BaseModel):
+        "instruction": "Complete the code snippet",
+        "input": '''class BatteryConfig(pydantic.BaseModel):
             """Battery asset configuration."""
 
             name: str
@@ -14,7 +16,7 @@ data = [
             final_charge_mwh: float | None = 0.0
             freq_mins: int
             ''',
-        "response": '''@pydantic.field_validator("name")
+        "output": '''@pydantic.field_validator("name")
             @classmethod
             def check_name(cls, name: str) -> str:
                 """Ensure we can identify this asset correctly.
@@ -30,10 +32,17 @@ data = [
         ''',
     }
 ]
-ds = datasets.Dataset.from_dict(
-    {
-        "prompt": [i["prompt"] for i in data],
-        "response": [i["response"] for i in data],
-    }
-)
+
+ds = collections.defaultdict(list)
+for d in data:
+    ds["instruction"].append(d["instruction"])
+    ds["input"].append(d["input"])
+    ds["output"].append(d["output"])
+    ds["prompt"].append(
+        f"Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction: {d['instruction']}\n\n### Input: {d['input']}"
+    )
+    print(ds["prompt"][-1])
+
+
+ds = datasets.Dataset.from_dict(ds)
 ds.push_to_hub("adgefficiency/energy-py-linear")

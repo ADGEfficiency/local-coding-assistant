@@ -53,10 +53,10 @@ model = FastLanguageModel.get_peft_model(
 # +
 prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
-### Task:
-Complete the code.
+### Instruction:
+{}
 
-### Prompt:
+### Input:
 {}
 
 ### Response:
@@ -64,14 +64,12 @@ Complete the code.
 
 
 def formatting_prompts_func(examples):
-    EOS_TOKEN = tokenizer.eos_token  # Must add EOS_TOKEN
-    instructions = examples["prompt"]
-    response = examples["response"]
-    # outputs      = examples["output"]
+    instruction = examples["instruction"]
+    input = examples["input"]
+    output = examples["output"]
     texts = []
-    for instruction, input in zip(instructions, response):
-        # Must add EOS_TOKEN, otherwise your generation will go on forever!
-        text = prompt.format(instruction, input) + EOS_TOKEN
+    for instruction, input, output in zip(instruction, input, output):
+        text = prompt.format(instruction, input, output) + tokenizer.eos_token
         texts.append(text)
     return {
         "text": texts,
