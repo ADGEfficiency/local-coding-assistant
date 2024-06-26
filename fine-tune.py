@@ -4,6 +4,12 @@
 # !pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 # !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
 
+# +
+!pip install wandb -qU
+import wandb
+wandb.login()
+run = wandb.init(project='Fine tuning mistral 7B', job_type="training", anonymous="allow")
+
 # # Model and Tokenizer
 
 # +
@@ -95,6 +101,7 @@ trainer = SFTTrainer(
         lr_scheduler_type="linear",
         seed=3407,
         output_dir="outputs",
+        report_to="wandb"
     ),
 )
 
