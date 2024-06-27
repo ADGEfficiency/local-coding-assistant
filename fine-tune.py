@@ -2,15 +2,7 @@
 # Installs Unsloth, Xformers (Flash Attention) and all other packages!
 
 # !pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-# !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
-
-# +
-!pip install wandb -qU
-import wandb
-wandb.login()
-run = wandb.init(project='Fine tuning mistral 7B', job_type="training", anonymous="allow")
-
-# # Model and Tokenizer
+# !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes wandb
 
 # +
 from unsloth import FastLanguageModel
@@ -19,6 +11,21 @@ import datasets
 from trl import SFTTrainer
 from transformers import TrainingArguments
 from unsloth import is_bfloat16_supported
+from google.colab import drive
+import wandb
+import shutil
+
+drive.mount("/content/drive")
+
+wandb.login()
+run = wandb.init(
+    project="Fine tuning Codellama", job_type="training", anonymous="allow"
+)
+# -
+
+# # Model and Tokenizer
+
+# +
 
 max_seq_length = 2048
 dtype = None
@@ -52,8 +59,8 @@ model = FastLanguageModel.get_peft_model(
     use_rslora=False,
     loftq_config=None,
 )
-# -
 
+# -
 # # Load Dataset
 
 
@@ -69,9 +76,8 @@ def formatting_prompts_func(examples: dict):
 
 dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
 dataset = dataset.map(formatting_prompts_func, batched=True)
-
-# dataset_te = load_dataset("adgefficiency/energy-py-linear", split="test")
-# dataset_te = dataset_te.map(formatting_prompts_func, batched=True)
+dataset_te = datasets.load_dataset("adgefficiency/energy-py-linear", split="test")
+dataset_te = dataset_te.map(formatting_prompts_func, batched=True)
 
 # -
 # # Training
@@ -81,8 +87,7 @@ trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
     train_dataset=dataset,
-    # eval_dataset=dataset_te,
-    eval_dataset=dataset,
+    eval_dataset=dataset_te,
     dataset_text_field="prompt-response",
     max_seq_length=max_seq_length,
     dataset_num_proc=2,
@@ -91,7 +96,8 @@ trainer = SFTTrainer(
         per_device_train_batch_size=2,
         gradient_accumulation_steps=4,
         warmup_steps=5,
-        max_steps=60,  # Set num_train_epochs = 1 for full training runs
+        max_steps=2,  # Set num_train_epochs = 1 for full training runs
+        # num_train_epochs=5,
         learning_rate=2e-4,
         fp16=not is_bfloat16_supported(),
         bf16=is_bfloat16_supported(),
@@ -101,7 +107,7 @@ trainer = SFTTrainer(
         lr_scheduler_type="linear",
         seed=3407,
         output_dir="outputs",
-        report_to="wandb"
+        report_to="wandb",
     ),
 )
 
@@ -142,16 +148,18 @@ for response in decoded_outputs:
     print(f"{response=}")
     print(f"{dataset['output'][0]=}")
 # -
-# Evaluate
+# # Evaluate
 
 # +
 if False:
     eval_results = trainer.evaluate()
     print(f"Evaluation results: {eval_results}")
-
 # -
 # # GGUF / llama.cpp Conversion
 
 # +
 if False:
     model.save_pretrained_gguf("model", tokenizer, quantization_method="q5_k_m")
+    source_path = "model.txt"
+    destination_path = "/content/drive/My Drive/destination_folder/sample_data.txt"
+    shutil.copy(source_path, destination_path)
