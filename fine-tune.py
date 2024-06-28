@@ -18,16 +18,37 @@ import shutil
 
 import pathlib
 
+
+def format_prompt(examples: dict):
+    prompt_responses = []
+    for example in examples["prompt-response"]:
+        prompt_responses.append(
+            example + tokenizer.eos_token,
+        )
+    return {"prompt-responses": prompt_responses}
+
+
+def latest_checkpoint(output_dir: pathlib.Path):
+    """Finds the latest checkpoints if any exist."""
+    checkpoints = [
+        cp for cp in output_dir.iterdir() if cp.is_dir() and "checkpoint-" in cp.name
+    ]
+    if checkpoints:
+        latest_checkpoint = max(checkpoints, key=lambda cp: int(cp.name.split("-")[-1]))
+        return str(latest_checkpoint)
+    return None
+
+
 drive.mount("/content/drive")
 output_dir = pathlib.Path("./drive/MyDrive/fine-tune-codellama/")
 output_dir.mkdir(exist_ok=True)
-
 wandb.login()
-run = wandb.init(
-    project="Fine tuning Codellama", job_type="training", anonymous="allow"
-)
-# -
+run = wandb.init(project="Fine tuning Codellama")
 
+evaluate_after_training = False
+save_after_training = True
+
+# -
 # # Model and Tokenizer
 
 # +
@@ -63,26 +84,14 @@ model = FastLanguageModel.get_peft_model(
     use_rslora=False,
     loftq_config=None,
 )
-
 # -
 # # Load Dataset
 
-
 # +
-def formatting_prompts_func(examples: dict):
-    prompt_responses = []
-    for example in examples["prompt-response"]:
-        prompt_responses.append(
-            example + tokenizer.eos_token,
-        )
-    return {"prompt-responses": prompt_responses}
-
-
 dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
-dataset = dataset.map(formatting_prompts_func, batched=True)
+dataset = dataset.map(format_prompt, batched=True)
 dataset_te = datasets.load_dataset("adgefficiency/energy-py-linear", split="test")
-dataset_te = dataset_te.map(formatting_prompts_func, batched=True)
-
+dataset_te = dataset_te.map(format_prompt, batched=True)
 # -
 # # Training
 
@@ -97,22 +106,24 @@ trainer = SFTTrainer(
     dataset_num_proc=2,
     packing=False,  # Can make training 5x faster for short sequences.
     args=TrainingArguments(
-        per_device_train_batch_size=2,
-        gradient_accumulation_steps=4,
-        warmup_steps=5,
-        # max_steps=2,  # Set num_train_epochs = 1 for full training runs
-        num_train_epochs=2,
-        save_steps=100,
-        learning_rate=2e-4,
-        fp16=not is_bfloat16_supported(),
         bf16=is_bfloat16_supported(),
+        eval_steps=250,
+        save_steps=100,
+        eval_strategy="steps",
+        fp16=not is_bfloat16_supported(),
+        gradient_accumulation_steps=4,
+        learning_rate=2e-4,
         logging_steps=1,
-        optim="adamw_8bit",
-        weight_decay=0.01,
         lr_scheduler_type="linear",
-        seed=3407,
+        num_train_epochs=2,
+        optim="adamw_8bit",
         output_dir=output_dir,
+        per_device_train_batch_size=4,
         report_to="wandb",
+        seed=3407,
+        warmup_steps=5,
+        weight_decay=0.01,
+        load_best_model_at_end=True,
     ),
 )
 
@@ -122,9 +133,7 @@ max_memory = round(gpu_stats.total_memory / 1024 / 1024 / 1024, 3)
 print(f"GPU = {gpu_stats.name}. Max memory = {max_memory} GB.")
 print(f"{start_gpu_memory} GB of memory reserved.")
 
-trainer_stats = trainer.train(
-    resume_from_checkpoint=output_dir / "checkpoint-200",
-)
+trainer_stats = trainer.train(resume_from_checkpoint=latest_checkpoint(output_dir))
 
 used_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
 used_memory_for_lora = round(used_memory - start_gpu_memory, 3)
@@ -140,15 +149,10 @@ print(f"Peak reserved memory % of max memory = {used_percentage} %.")
 print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.")
 # -
 # # Inference
-# Let's run the model! You can change the instruction and input - leave the output blank!
 
 # +
 FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
-inputs = tokenizer(
-    [dataset["prompt"][0]],
-    return_tensors="pt",
-).to("cuda")
-
+inputs = tokenizer([dataset["prompt"][0]], return_tensors="pt").to("cuda")
 outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
 decoded_outputs = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 for response in decoded_outputs:
@@ -158,14 +162,14 @@ for response in decoded_outputs:
 # # Evaluate
 
 # +
-if False:
+if evaluate_after_training:
     eval_results = trainer.evaluate()
     print(f"Evaluation results: {eval_results}")
 # -
 # # GGUF / llama.cpp Conversion
 
 # +
-if True:
+if save_after_training:
     model.save_pretrained_gguf("model", tokenizer, quantization_method="q5_k_m")
     source_path = "model/unsloth.Q5_K_M.gguf"
     destination_path = output_dir / source_path
