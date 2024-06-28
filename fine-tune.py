@@ -2,7 +2,8 @@
 # Installs Unsloth, Xformers (Flash Attention) and all other packages!
 
 # !pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-# !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes wandb
+# !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
+# !pip install wandb -U
 
 # +
 from unsloth import FastLanguageModel
@@ -15,6 +16,10 @@ from google.colab import drive
 import wandb
 import shutil
 
+import pathlib
+
+output_dir = pathlib.Path("./drive/MyDrive/fine-tune-codellama/")
+output_dir.mkdir(exist_ok=True)
 drive.mount("/content/drive")
 
 wandb.login()
@@ -26,7 +31,6 @@ run = wandb.init(
 # # Model and Tokenizer
 
 # +
-
 max_seq_length = 2048
 dtype = None
 load_in_4bit = True
@@ -96,8 +100,9 @@ trainer = SFTTrainer(
         per_device_train_batch_size=2,
         gradient_accumulation_steps=4,
         warmup_steps=5,
-        max_steps=2,  # Set num_train_epochs = 1 for full training runs
-        # num_train_epochs=5,
+        # max_steps=2,  # Set num_train_epochs = 1 for full training runs
+        num_train_epochs=2,
+        save_steps=100,
         learning_rate=2e-4,
         fp16=not is_bfloat16_supported(),
         bf16=is_bfloat16_supported(),
@@ -106,7 +111,7 @@ trainer = SFTTrainer(
         weight_decay=0.01,
         lr_scheduler_type="linear",
         seed=3407,
-        output_dir="outputs",
+        output_dir=output_dir,
         report_to="wandb",
     ),
 )
@@ -161,6 +166,5 @@ if False:
 if True:
     model.save_pretrained_gguf("model", tokenizer, quantization_method="q5_k_m")
     source_path = "model/unsloth.Q5_K_M.gguf"
-    destination_path = f"./drive/MyDrive/{source_path}"
-    !mkdir -p "./drive/MyDrive/model"
+    destination_path = output_dir / source_path
     shutil.copy(source_path, destination_path)
