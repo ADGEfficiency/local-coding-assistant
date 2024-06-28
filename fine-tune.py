@@ -158,8 +158,9 @@ if False:
 # # GGUF / llama.cpp Conversion
 
 # +
-if False:
+if True:
     model.save_pretrained_gguf("model", tokenizer, quantization_method="q5_k_m")
-    source_path = "model.txt"
-    destination_path = "/content/drive/My Drive/destination_folder/sample_data.txt"
+    source_path = "model/unsloth.Q5_K_M.gguf"
+    destination_path = f"./drive/MyDrive/{source_path}"
+    !mkdir -p "./drive/MyDrive/model"
     shutil.copy(source_path, destination_path)
