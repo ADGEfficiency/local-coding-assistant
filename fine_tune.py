@@ -21,9 +21,14 @@ import pathlib
 def format_prompt(examples: dict):
     prompt_responses = []
     for example in examples["prompt-response"]:
-        prompt_responses.append(
-            example + tokenizer.eos_token,
+        result = tokenizer(
+            example,
+            truncation=True,
+            max_length=512,
+            padding=False,
+            return_tensors=None,
         )
+        result["labels"] = result["input_ids"].copy()
     return {"prompt-responses": prompt_responses}
 
 
@@ -72,6 +77,9 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     dtype=dtype,
     load_in_4bit=load_in_4bit,
 )
+tokenizer.add_eos_token = True
+tokenizer.pad_token_id = 0
+tokenizer.padding_side = "left"
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -113,7 +121,7 @@ trainer = SFTTrainer(
     dataset_text_field="prompt-response",
     max_seq_length=max_seq_length,
     dataset_num_proc=2,
-    packing=False,  # Can make training 5x faster for short sequences.
+    packing=True,
     args=TrainingArguments(
         bf16=is_bfloat16_supported(),
         eval_steps=100,
