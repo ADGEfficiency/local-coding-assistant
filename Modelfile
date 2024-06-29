@@ -1,0 +1,7 @@
+FROM ./experiments/2024-06-28/unsloth.Q5_K_M.gguf
+
+SYSTEM """Write a response that appropriately completes the request."""
+
+TEMPLATE """[INST] <<SYS>>{{ .System }}<</SYS>>
+Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction: Guess the file name based on the following code snippet.\n\n### Response: {{ .Prompt }} [/INST]
+"""
