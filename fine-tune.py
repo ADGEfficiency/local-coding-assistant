@@ -113,12 +113,12 @@ trainer = SFTTrainer(
         fp16=not is_bfloat16_supported(),
         gradient_accumulation_steps=4,
         learning_rate=2e-4,
-        logging_steps=1,
+        logging_steps=10,
         lr_scheduler_type="linear",
         num_train_epochs=2,
         optim="adamw_8bit",
         output_dir=output_dir,
-        per_device_train_batch_size=4,
+        per_device_train_batch_size=8,
         report_to="wandb",
         seed=3407,
         warmup_steps=5,
@@ -173,4 +173,5 @@ if save_after_training:
     model.save_pretrained_gguf("model", tokenizer, quantization_method="q5_k_m")
     source_path = "model/unsloth.Q5_K_M.gguf"
     destination_path = output_dir / source_path
+    pathlib.Path(output_dir / "model").mkdir(exist_ok=True)
     shutil.copy(source_path, destination_path)
