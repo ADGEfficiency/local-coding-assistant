@@ -12,7 +12,6 @@ import datasets
 from trl import SFTTrainer
 from transformers import TrainingArguments
 from unsloth import is_bfloat16_supported
-from google.colab import drive
 import wandb
 import shutil
 
@@ -39,9 +38,19 @@ def latest_checkpoint(output_dir: pathlib.Path):
     return None
 
 
-drive.mount("/content/drive")
-output_dir = pathlib.Path("./drive/MyDrive/fine-tune-codellama/")
-output_dir.mkdir(exist_ok=True)
+def get_output_dir():
+    try:
+        from google.colab import drive
+        drive.mount("/content/drive")
+        output_dir = pathlib.Path("./drive/MyDrive/fine-tune-codellama/")
+    except:
+        output_dir = pathlib.Path("./experiments/fine-tune-codellama")
+
+    output_dir.mkdir(exist_ok=True)
+    return output_dir
+
+output_dir = get_output_dir()
+
 wandb.login()
 run = wandb.init(project="Fine tuning Codellama")
 
@@ -107,7 +116,7 @@ trainer = SFTTrainer(
     packing=False,  # Can make training 5x faster for short sequences.
     args=TrainingArguments(
         bf16=is_bfloat16_supported(),
-        eval_steps=250,
+        eval_steps=100,
         save_steps=100,
         eval_strategy="steps",
         fp16=not is_bfloat16_supported(),
@@ -118,7 +127,7 @@ trainer = SFTTrainer(
         num_train_epochs=2,
         optim="adamw_8bit",
         output_dir=output_dir,
-        per_device_train_batch_size=8,
+        per_device_train_batch_size=4,
         report_to="wandb",
         seed=3407,
         warmup_steps=5,
