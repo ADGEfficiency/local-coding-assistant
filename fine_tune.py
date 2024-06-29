@@ -47,6 +47,7 @@ def latest_checkpoint(output_dir: pathlib.Path):
 def get_output_dir():
     try:
         from google.colab import drive
+
         drive.mount("/content/drive")
         output_dir = pathlib.Path("./drive/MyDrive/fine-tune-codellama/")
     except:
@@ -54,6 +55,7 @@ def get_output_dir():
 
     output_dir.mkdir(exist_ok=True)
     return output_dir
+
 
 output_dir = get_output_dir()
 
@@ -113,6 +115,8 @@ dataset_te = dataset_te.map(format_prompt, batched=True)
 # # Training
 
 # +
+from callbacks import *
+
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
@@ -143,6 +147,14 @@ trainer = SFTTrainer(
         load_best_model_at_end=True,
     ),
 )
+cb = WandbPredictionProgressCallback(
+    trainer=trainer,
+    tokenizer=tokenizer,
+    val_dataset=dataset_te,
+    num_samples=10,
+    freq=10,
+)
+trainer.add_callback(cb)
 
 gpu_stats = torch.cuda.get_device_properties(0)
 start_gpu_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
