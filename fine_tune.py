@@ -29,6 +29,7 @@ def format_prompt(examples: dict):
             return_tensors=None,
         )
         result["labels"] = result["input_ids"].copy()
+        prompt_responses.append(result)
     return {"prompt-responses": prompt_responses}
 
 
@@ -57,7 +58,7 @@ def get_output_dir():
 output_dir = get_output_dir()
 
 wandb.login()
-run = wandb.init(project="Fine tuning Codellama")
+run = wandb.init(project="energy-py-linear-codellama-v2")
 
 evaluate_after_training = False
 save_after_training = True
@@ -66,7 +67,7 @@ save_after_training = True
 # # Model and Tokenizer
 
 # +
-max_seq_length = 2048
+max_seq_length = 1024
 dtype = None
 load_in_4bit = True
 model = "unsloth/codellama-7b-bnb-4bit"
@@ -123,15 +124,15 @@ trainer = SFTTrainer(
     packing=True,
     args=TrainingArguments(
         bf16=is_bfloat16_supported(),
-        eval_steps=100,
-        save_steps=100,
+        eval_steps=500,
+        save_steps=500,
         eval_strategy="steps",
         fp16=not is_bfloat16_supported(),
         gradient_accumulation_steps=4,
         learning_rate=2e-4,
-        logging_steps=10,
+        logging_steps=11,
         lr_scheduler_type="linear",
-        num_train_epochs=2,
+        num_train_epochs=5,
         optim="adamw_8bit",
         output_dir=output_dir,
         per_device_train_batch_size=2,
