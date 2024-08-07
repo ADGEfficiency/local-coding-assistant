@@ -1,8 +1,10 @@
 from transformers.integrations import WandbCallback
 import pandas as pd
+import numpy as np
 
 
 def decode_predictions(tokenizer, predictions):
+    predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
     labels = tokenizer.batch_decode(predictions.label_ids)
     logits = predictions.predictions.argmax(axis=-1)
     prediction_text = tokenizer.batch_decode(logits)

@@ -83,10 +83,10 @@ def extract_prompts(fis):
         ds["input"].append(d["input"])
         ds["output"].append(d["output"])
         ds["prompt"].append(
-            f"Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction: {d['instruction']}\n\n### Input: {d['input']}"
+            f"## Instruction: {d['instruction']}\n\n## Input: {d['input']}"
         )
         ds["prompt-response"].append(
-            f"{ds['prompt'][-1]}\n\n### Response: {d['output']}"
+            f"{ds['prompt'][-1]}\n\n## Response: {d['output']}"
         )
 
     return ds

@@ -19,18 +19,16 @@ import pathlib
 
 
 def format_prompt(examples: dict):
-    prompt_responses = []
-    for example in examples["prompt-response"]:
-        result = tokenizer(
-            example,
-            truncation=True,
-            max_length=512,
-            padding=False,
-            return_tensors=None,
-        )
-        result["labels"] = result["input_ids"].copy()
-        prompt_responses.append(result)
-    return {"prompt-responses": prompt_responses}
+    model_inputs = tokenizer(
+        examples["input"], max_length=512, truncation=True, padding="max_length"
+    )
+    with tokenizer.as_target_tokenizer():
+        labels = tokenizer(
+            examples["output"], max_length=512, truncation=True, padding="max_length"
+        )["input_ids"]
+        model_inputs["labels"] = labels
+
+    return model_inputs
 
 
 def latest_checkpoint(output_dir: pathlib.Path):
@@ -78,7 +76,8 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=model,
     max_seq_length=max_seq_length,
     dtype=dtype,
-    load_in_4bit=load_in_4bit,)
+    load_in_4bit=load_in_4bit,
+)
 tokenizer.add_eos_token = True
 tokenizer.pad_token_id = 0
 tokenizer.padding_side = "left"
