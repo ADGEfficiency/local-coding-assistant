@@ -107,10 +107,23 @@ model = FastLanguageModel.get_peft_model(
 
 # +
 dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
-dataset = dataset.map(format_prompt)
+dataset = dataset.map(format_prompt, batched=True)
 dataset_te = datasets.load_dataset("adgefficiency/energy-py-linear", split="test")
-dataset_te = dataset_te.map(format_prompt)
+dataset_te = dataset_te.map(format_prompt, batched=True)
 
+# Print 3 examples from the training dataset
+for i in range(3):
+    print(f"Example {i+1} from training dataset:")
+    print(f"Input: {tokenizer.decode(dataset['input'][i])}")
+    print(f"Labels: {tokenizer.decode(dataset['labels'][i])}")
+    print()
+
+# Print 3 examples from the testing dataset
+for i in range(3):
+    print(f"Example {i+1} from testing dataset:")
+    print(f"Input: {tokenizer.decode(dataset_te['input'][i])}")
+    print(f"Labels: {tokenizer.decode(dataset_te['labels'][i])}")
+    print()
 # -
 # # Training
 
@@ -131,7 +144,7 @@ trainer = SFTTrainer(
         pad_to_multiple_of=8,
         return_tensors="pt",
         padding=True,
-        label_pad_token_id=tokenizer.pad_token_id
+        label_pad_token_id=tokenizer.pad_token_id,
     ),
     args=TrainingArguments(
         bf16=is_bfloat16_supported(),
@@ -146,13 +159,13 @@ trainer = SFTTrainer(
         num_train_epochs=5,
         optim="adamw_8bit",
         output_dir=output_dir,
-        per_device_train_batch_size=2,
+        per_device_train_batch_size=3,
         per_device_eval_batch_size=1,
         seed=3407,
         warmup_steps=5,
         weight_decay=0.01,
         load_best_model_at_end=True,
-        remove_unused_columns=True
+        remove_unused_columns=True,
     ),
 )
 cb = WandbPredictionProgressCallback(
