@@ -10,7 +10,7 @@ from unsloth import FastLanguageModel
 import torch
 import datasets
 from trl import SFTTrainer
-from transformers import TrainingArguments
+from transformers import TrainingArguments, DataCollatorForSeq2Seq
 from unsloth import is_bfloat16_supported
 import wandb
 import shutil
@@ -58,7 +58,7 @@ def get_output_dir():
 output_dir = get_output_dir()
 
 wandb.login()
-run = wandb.init(project="energy-py-linear-codellama-v2")
+run = wandb.init(project="energy-py-linear-codellama-v2", reinit=True)
 
 evaluate_after_training = False
 save_after_training = True
@@ -107,9 +107,10 @@ model = FastLanguageModel.get_peft_model(
 
 # +
 dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
-dataset = dataset.map(format_prompt, batched=True)
+dataset = dataset.map(format_prompt)
 dataset_te = datasets.load_dataset("adgefficiency/energy-py-linear", split="test")
-dataset_te = dataset_te.map(format_prompt, batched=True)
+dataset_te = dataset_te.map(format_prompt)
+
 # -
 # # Training
 
@@ -121,14 +122,21 @@ trainer = SFTTrainer(
     tokenizer=tokenizer,
     train_dataset=dataset,
     eval_dataset=dataset_te,
-    dataset_text_field="prompt-response",
+    dataset_text_field="prompt-responses",
     max_seq_length=max_seq_length,
     dataset_num_proc=2,
     packing=True,
+    data_collator=DataCollatorForSeq2Seq(
+        tokenizer,
+        pad_to_multiple_of=8,
+        return_tensors="pt",
+        padding=True,
+        label_pad_token_id=tokenizer.pad_token_id
+    ),
     args=TrainingArguments(
         bf16=is_bfloat16_supported(),
-        eval_steps=500,
-        save_steps=500,
+        eval_steps=100,
+        save_steps=100,
         eval_strategy="steps",
         fp16=not is_bfloat16_supported(),
         gradient_accumulation_steps=4,
@@ -144,6 +152,7 @@ trainer = SFTTrainer(
         warmup_steps=5,
         weight_decay=0.01,
         load_best_model_at_end=True,
+        remove_unused_columns=True
     ),
 )
 cb = WandbPredictionProgressCallback(
@@ -151,7 +160,7 @@ cb = WandbPredictionProgressCallback(
     tokenizer=tokenizer,
     val_dataset=dataset_te,
     num_samples=10,
-    freq=10,
+    freq=1,
 )
 trainer.add_callback(cb)
 
