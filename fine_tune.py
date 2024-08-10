@@ -113,7 +113,7 @@ dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
 dataset = dataset.map(format_prompt, batched=True)
 dataset_te = datasets.load_dataset(
     "adgefficiency/energy-py-linear", split="test"
-).select(range(5))
+).select(range(10))
 dataset_te = dataset_te.map(format_prompt, batched=True)
 
 for i in range(3):
