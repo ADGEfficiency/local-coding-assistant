@@ -114,14 +114,14 @@ dataset_te = dataset_te.map(format_prompt, batched=True)
 # Print 3 examples from the training dataset
 for i in range(3):
     print(f"Example {i+1} from training dataset:")
-    print(f"Input: {tokenizer.decode(dataset['input'][i])}")
+    print(f"Input: {tokenizer.decode(dataset['input_ids'][i])}")
     print(f"Labels: {tokenizer.decode(dataset['labels'][i])}")
     print()
 
 # Print 3 examples from the testing dataset
 for i in range(3):
     print(f"Example {i+1} from testing dataset:")
-    print(f"Input: {tokenizer.decode(dataset_te['input'][i])}")
+    print(f"Input: {tokenizer.decode(dataset_te['input_ids'][i])}")
     print(f"Labels: {tokenizer.decode(dataset_te['labels'][i])}")
     print()
 # -
