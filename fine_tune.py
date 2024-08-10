@@ -78,6 +78,7 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     dtype=dtype,
     load_in_4bit=load_in_4bit,
 )
+FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
 tokenizer.add_eos_token = True
 tokenizer.pad_token_id = 0
 tokenizer.padding_side = "left"
@@ -106,9 +107,13 @@ model = FastLanguageModel.get_peft_model(
 # # Load Dataset
 
 # +
-dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
+dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train").select(
+    range(100)
+)
 dataset = dataset.map(format_prompt, batched=True)
-dataset_te = datasets.load_dataset("adgefficiency/energy-py-linear", split="test")
+dataset_te = datasets.load_dataset(
+    "adgefficiency/energy-py-linear", split="test"
+).select(range(10))
 dataset_te = dataset_te.map(format_prompt, batched=True)
 
 # Print 3 examples from the training dataset
@@ -150,7 +155,7 @@ trainer = SFTTrainer(
         bf16=is_bfloat16_supported(),
         eval_steps=100,
         save_steps=100,
-        eval_strategy="steps",
+        evaluation_strategy="steps",
         fp16=not is_bfloat16_supported(),
         gradient_accumulation_steps=4,
         learning_rate=2e-4,
