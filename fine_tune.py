@@ -5,6 +5,11 @@
 # !pip install --no-deps xformers "trl<0.9.0" peft accelerate bitsandbytes
 # !pip install wandb -U
 
+"""
+git clone --recursive https://github.com/ggerganov/llama.cpp
+cd llama.cpp && make clean && make all -j
+"""
+
 # +
 from unsloth import FastLanguageModel
 import torch
