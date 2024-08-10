@@ -60,7 +60,7 @@ output_dir = get_output_dir()
 wandb.login()
 run = wandb.init(project="energy-py-linear-codellama-v2", reinit=True)
 
-evaluate_after_training = False
+evaluate_after_training = True
 save_after_training = True
 
 # -
@@ -205,12 +205,16 @@ print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.
 
 # +
 FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
-inputs = tokenizer([dataset["prompt"][0]], return_tensors="pt").to("cuda")
-outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
-decoded_outputs = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-for response in decoded_outputs:
-    print(f"{response=}")
-    print(f"{dataset['output'][0]=}")
+
+for i in range(3):
+    decoded_input = [dataset_te["prompt"][i]]
+    inputs = tokenizer(decoded_input, return_tensors="pt").to("cuda")
+    outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
+    decoded_output = tokenizer.decode(outputs, skip_special_tokens=True)
+    print(f"INPUT\n {decoded_input}")
+    print(f"OUTPUT\n {decoded_output=}")
+    print(f"EXPECTED OUTPUT\n {dataset['output'][0]=}")
+    print()
 # -
 # # Evaluate
 
