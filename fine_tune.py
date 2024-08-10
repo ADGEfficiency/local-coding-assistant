@@ -10,9 +10,8 @@ from unsloth import FastLanguageModel
 import torch
 import datasets
 from trl import SFTTrainer
-from transformers import TrainingArguments
+from transformers import TrainingArguments, DataCollatorForSeq2Seq
 from unsloth import is_bfloat16_supported
-from google.colab import drive
 import wandb
 import shutil
 
@@ -20,12 +19,16 @@ import pathlib
 
 
 def format_prompt(examples: dict):
-    prompt_responses = []
-    for example in examples["prompt-response"]:
-        prompt_responses.append(
-            example + tokenizer.eos_token,
-        )
-    return {"prompt-responses": prompt_responses}
+    model_inputs = tokenizer(
+        examples["input"], max_length=512, truncation=True, padding="max_length"
+    )
+    with tokenizer.as_target_tokenizer():
+        labels = tokenizer(
+            examples["output"], max_length=512, truncation=True, padding="max_length"
+        )["input_ids"]
+        model_inputs["labels"] = labels
+
+    return model_inputs
 
 
 def latest_checkpoint(output_dir: pathlib.Path):
@@ -39,20 +42,32 @@ def latest_checkpoint(output_dir: pathlib.Path):
     return None
 
 
-drive.mount("/content/drive")
-output_dir = pathlib.Path("./drive/MyDrive/fine-tune-codellama/")
-output_dir.mkdir(exist_ok=True)
-wandb.login()
-run = wandb.init(project="Fine tuning Codellama")
+def get_output_dir():
+    try:
+        from google.colab import drive
 
-evaluate_after_training = False
+        drive.mount("/content/drive")
+        output_dir = pathlib.Path("./drive/MyDrive/fine-tune-codellama/")
+    except:
+        output_dir = pathlib.Path("./experiments/fine-tune-codellama")
+
+    output_dir.mkdir(exist_ok=True)
+    return output_dir
+
+
+output_dir = get_output_dir()
+
+wandb.login()
+run = wandb.init(project="energy-py-linear-codellama-v2", reinit=True)
+
+evaluate_after_training = True
 save_after_training = True
 
 # -
 # # Model and Tokenizer
 
 # +
-max_seq_length = 2048
+max_seq_length = 1024
 dtype = None
 load_in_4bit = True
 model = "unsloth/codellama-7b-bnb-4bit"
@@ -63,6 +78,10 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     dtype=dtype,
     load_in_4bit=load_in_4bit,
 )
+FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
+tokenizer.add_eos_token = True
+tokenizer.pad_token_id = 0
+tokenizer.padding_side = "left"
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -88,44 +107,78 @@ model = FastLanguageModel.get_peft_model(
 # # Load Dataset
 
 # +
-dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train")
+dataset = datasets.load_dataset("adgefficiency/energy-py-linear", split="train").select(
+    range(30)
+)
 dataset = dataset.map(format_prompt, batched=True)
-dataset_te = datasets.load_dataset("adgefficiency/energy-py-linear", split="test")
+dataset_te = datasets.load_dataset(
+    "adgefficiency/energy-py-linear", split="test"
+).select(range(10))
 dataset_te = dataset_te.map(format_prompt, batched=True)
+
+for i in range(3):
+    print(f"Example {i+1} from training dataset:")
+    print(f"Input: {tokenizer.decode(dataset['input_ids'][i])}")
+    print(f"Labels: {tokenizer.decode(dataset['labels'][i])}")
+    print()
+
+for i in range(3):
+    print(f"Example {i+1} from testing dataset:")
+    print(f"Input: {tokenizer.decode(dataset_te['input_ids'][i])}")
+    print(f"Labels: {tokenizer.decode(dataset_te['labels'][i])}")
+    print()
 # -
 # # Training
 
 # +
+from callbacks import *
+
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
     train_dataset=dataset,
     eval_dataset=dataset_te,
-    dataset_text_field="prompt-response",
+    dataset_text_field="prompt-responses",
     max_seq_length=max_seq_length,
     dataset_num_proc=2,
-    packing=False,  # Can make training 5x faster for short sequences.
+    packing=True,
+    data_collator=DataCollatorForSeq2Seq(
+        tokenizer,
+        pad_to_multiple_of=8,
+        return_tensors="pt",
+        padding=True,
+        label_pad_token_id=tokenizer.pad_token_id,
+    ),
     args=TrainingArguments(
         bf16=is_bfloat16_supported(),
-        eval_steps=250,
+        eval_steps=100,
         save_steps=100,
-        eval_strategy="steps",
+        evaluation_strategy="steps",
         fp16=not is_bfloat16_supported(),
         gradient_accumulation_steps=4,
         learning_rate=2e-4,
-        logging_steps=10,
+        logging_steps=11,
         lr_scheduler_type="linear",
-        num_train_epochs=2,
+        num_train_epochs=5,
         optim="adamw_8bit",
         output_dir=output_dir,
-        per_device_train_batch_size=8,
-        report_to="wandb",
+        per_device_train_batch_size=3,
+        per_device_eval_batch_size=1,
         seed=3407,
         warmup_steps=5,
         weight_decay=0.01,
         load_best_model_at_end=True,
+        remove_unused_columns=True,
     ),
 )
+cb = WandbPredictionProgressCallback(
+    trainer=trainer,
+    tokenizer=tokenizer,
+    val_dataset=dataset_te,
+    num_samples=10,
+    freq=1,
+)
+trainer.add_callback(cb)
 
 gpu_stats = torch.cuda.get_device_properties(0)
 start_gpu_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
@@ -152,12 +205,16 @@ print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.
 
 # +
 FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
-inputs = tokenizer([dataset["prompt"][0]], return_tensors="pt").to("cuda")
-outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
-decoded_outputs = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-for response in decoded_outputs:
-    print(f"{response=}")
-    print(f"{dataset['output'][0]=}")
+
+for i in range(3):
+    decoded_input = [dataset_te["prompt"][i]]
+    inputs = tokenizer(decoded_input, return_tensors="pt").to("cuda")
+    outputs = model.generate(**inputs, max_new_tokens=64, use_cache=True)
+    decoded_output = tokenizer.decode(outputs, skip_special_tokens=True)
+    print(f"INPUT\n {decoded_input}")
+    print(f"OUTPUT\n {decoded_output=}")
+    print(f"EXPECTED OUTPUT\n {dataset['output'][0]=}")
+    print()
 # -
 # # Evaluate
 

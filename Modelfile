@@ -1,0 +1,1 @@
+FROM ./model/codellama-7B-bnb-4bit-F16.gguf
