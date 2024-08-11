@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "coding-assistant"
+version = "0.0.1"
+description = ""
+authors = ["Adam Green <adam.green@adgefficiency.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+datasets = "^2.20.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
